@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+
+# Compilación
+dist/
+/artifacts
+
+# Variables de Entorno (Crítico)
+.env
+.env.*
+!.env.example
+
+# Logs y Caché
+*.log
+.npm
+.eslintcache
+.prettiercache
+
+# Editores de código
+.vscode/
+.idea/
+*.swp
+*.swo
