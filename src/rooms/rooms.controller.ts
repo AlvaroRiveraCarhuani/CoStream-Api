@@ -33,4 +33,8 @@ export class RoomsController {
     const hostId = req.user.sub;
     return this.roomsService.endRoom(roomId, hostId);
   }
+  @Get(':id/messages')
+  async getRoomMessages(@Param('id') roomId: string) {
+    return this.roomsService.getRoomMessages(roomId);
+  }
 }

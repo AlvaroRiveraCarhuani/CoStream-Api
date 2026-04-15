@@ -129,6 +129,27 @@ export class RoomsService {
 
     return { success: true, message: 'Transmisión finalizada correctamente.' };
   }
+  async getRoomMessages(roomId: string) {
+    const room = await this.prisma.room.findUnique({ where: { id: roomId } });
+    if (!room) throw new NotFoundException('Sala no encontrada.');
+
+    return this.prisma.message.findMany({
+      where: { roomId: roomId },
+      orderBy: { sentAt: 'asc' },
+      select: {
+        id: true,
+        senderName: true,
+        content: true,
+        sentAt: true,
+      }
+    }).then(messages => messages.map(msg => ({
+      id: msg.id,
+      senderName: msg.senderName,
+      role: 'VIEWER', 
+      content: msg.content,
+      timestamp: msg.sentAt,
+    })));
+  }
 
   private async generateLiveKitToken(roomId: string, participantName: string, identity: string, role: string): Promise<string> {
     const at = new AccessToken(
