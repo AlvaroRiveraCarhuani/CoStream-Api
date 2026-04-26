@@ -7,9 +7,10 @@ import { RoomsModule } from './rooms/rooms.module';
 import { PrismaService } from './prisma/prisma.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { EventsModule } from './events/events.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
-  imports: [UsersModule, AuthModule, RoomsModule, PrismaModule, EventsModule],
+  imports: [UsersModule, AuthModule, RoomsModule, PrismaModule, EventsModule, WebhooksModule],
   controllers: [AppController],
   providers: [AppService, PrismaService],
 })

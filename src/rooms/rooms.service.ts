@@ -150,6 +150,47 @@ export class RoomsService {
       timestamp: msg.sentAt,
     })));
   }
+  async getRoomHistory(hostId: string) {
+    const rooms = await this.prisma.room.findMany({
+      where: {
+        hostId: hostId,
+        isActive: false, 
+      },
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+        endedAt: true,
+        _count: {
+          select: {
+            messages: true, 
+            participants: true, 
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return rooms.map(room => {
+      let durationMinutes = 0;
+      if (room.endedAt) {
+        const diffMs = room.endedAt.getTime() - room.createdAt.getTime();
+        durationMinutes = Math.floor(diffMs / 1000 / 60);
+      }
+
+      return {
+        id: room.id,
+        title: room.title,
+        createdAt: room.createdAt,
+        endedAt: room.endedAt,
+        durationMinutes: durationMinutes,
+        totalMessages: room._count.messages,
+        totalParticipants: room._count.participants,
+      };
+    });
+  }
 
   private async generateLiveKitToken(roomId: string, participantName: string, identity: string, role: string): Promise<string> {
     const at = new AccessToken(

@@ -4,13 +4,20 @@ import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-@Controller('api/rooms')
+@Controller('rooms')
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
   @Get('public')
   async getPublicRooms() {
     return this.roomsService.getPublicRooms();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('history')
+  async getRoomHistory(@Request() req) {
+    const hostId = req.user.sub; // Sacamos el ID del token JWT
+    return this.roomsService.getRoomHistory(hostId);
   }
 
   @HttpCode(HttpStatus.OK)

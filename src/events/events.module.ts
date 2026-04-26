@@ -7,5 +7,6 @@ import { PrismaModule } from '../prisma/prisma.module';
 @Module({
   imports: [PrismaModule, JwtModule],
   providers: [EventsGateway, RoomStateService],
+  exports: [EventsGateway, RoomStateService], 
 })
 export class EventsModule {}
