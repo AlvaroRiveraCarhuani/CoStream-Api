@@ -10,7 +10,7 @@ import { UsersModule } from '../users/users.module';
     JwtModule.register({
       global: true,
       secret: process.env.JWT_SECRET || 'super_secret_costream_key_2026', 
-      signOptions: { expiresIn: '12h' }, 
+      signOptions: { expiresIn: '1000h' }, 
     }),
   ],
   providers: [AuthService],
