@@ -1,0 +1,41 @@
+services:
+  costream-db-prod:
+    image: postgres:15-alpine
+    container_name: costream_database_prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-supersecret}
+      POSTGRES_DB: ${DB_NAME:-costream_prod}
+    volumes:
+      - costream_prod_data:/var/lib/postgresql/data
+    networks:
+      - costream_network
+
+  costream-api-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: costream_backend_prod
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-supersecret}@costream-db-prod:5432/${DB_NAME:-costream_prod}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+    depends_on:
+      - costream-db-prod
+    networks:
+      - costream_network
+
+volumes:
+  costream_prod_data:
+
+networks:
+  costream_network:
+    driver: bridge
