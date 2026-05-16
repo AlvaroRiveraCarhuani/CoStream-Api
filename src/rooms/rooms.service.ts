@@ -37,7 +37,7 @@ export class RoomsService {
 
     const hostToken = await this.generateLiveKitToken(
       newRoom.id, 
-      'Host', // Opcional: Podríamos extraer el displayName haciendo un query adicional
+      'Host',  
       hostId, 
       'HOST'
     );

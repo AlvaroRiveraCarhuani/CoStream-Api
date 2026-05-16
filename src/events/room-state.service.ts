@@ -9,7 +9,6 @@ export interface RoomParticipant {
 
 @Injectable()
 export class RoomStateService {
-  // Map<RoomId, Map<UserId, Participant>>
   private rooms = new Map<string, Map<string, RoomParticipant>>();
 
   addParticipant(roomId: string, participant: RoomParticipant) {

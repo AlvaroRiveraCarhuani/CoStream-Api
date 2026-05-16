@@ -52,12 +52,12 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         userId,
         name,
         role,
-        isOnStage: role === 'HOST', // El Host entra al escenario por defecto, el resto a backstage
+        isOnStage: role === 'HOST', 
       });
 
       this.broadcastRoomState(roomId);
     } catch (error) {
-      client.disconnect(true); // Expulsa al intruso inmediatamente
+      client.disconnect(true); 
     }
   }
 

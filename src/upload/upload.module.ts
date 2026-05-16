@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt'; 
 import { UploadController } from './upload.controller';
 import { UploadService } from './upload.service';
 import { v2 as cloudinary } from 'cloudinary';
@@ -15,6 +16,7 @@ const CloudinaryProvider = {
 };
 
 @Module({
+  imports: [JwtModule], 
   controllers: [UploadController],
   providers: [UploadService, CloudinaryProvider],
 })

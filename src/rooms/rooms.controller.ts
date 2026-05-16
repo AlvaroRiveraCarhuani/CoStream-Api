@@ -16,7 +16,7 @@ export class RoomsController {
   @UseGuards(JwtAuthGuard)
   @Get('history')
   async getRoomHistory(@Request() req) {
-    const hostId = req.user.sub; // Sacamos el ID del token JWT
+    const hostId = req.user.sub;  
     return this.roomsService.getRoomHistory(hostId);
   }
 
