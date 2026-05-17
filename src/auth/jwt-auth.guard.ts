@@ -3,12 +3,14 @@ import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 
 @Injectable()
-export class JwtAuthGuard {
+export class JwtAuthGuard implements CanActivate {
   constructor(private jwtService: JwtService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const token = this.extractTokenFromHeader(request);
+    
+    // Cambiamos la fuente de extracción
+    const token = this.extractTokenFromCookie(request);
     
     if (!token) {
       throw new UnauthorizedException('No tienes autorización para realizar esta acción.');
@@ -25,8 +27,7 @@ export class JwtAuthGuard {
     return true;
   }
 
-  private extractTokenFromHeader(request: Request): string | undefined {
-    const [type, token] = request.headers.authorization?.split(' ') ?? [];
-    return type === 'Bearer' ? token : undefined;
+  private extractTokenFromCookie(request: Request): string | undefined {
+    return request.cookies?.jwt; // Asumimos que nombraremos a la cookie como 'jwt'
   }
 }

@@ -33,5 +33,13 @@ export class AuthService {
     return { accessToken: await this.jwtService.signAsync(payload) };
   }
 
-  
+  async loginWithGoogle(user: any): Promise<string> {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: 'HOST',
+      avatar: user.avatar
+    };
+    return this.jwtService.signAsync(payload);
+  }
 }

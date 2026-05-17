@@ -3,11 +3,13 @@ import { AppModule } from './app.module';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import cookieParser from 'cookie-parser'; 
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.use(helmet());
+  app.use(cookieParser()); 
 
   app.useGlobalFilters(new HttpExceptionFilter());
 
@@ -17,7 +19,10 @@ async function bootstrap() {
     transform: true,
   }));
 
-  app.enableCors();
+  app.enableCors({
+    origin: 'http://localhost:4200',
+    credentials: true,
+  });
 
   app.setGlobalPrefix('api', {
     exclude: [{ path: 'webhooks/livekit', method: RequestMethod.POST }],
