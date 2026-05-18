@@ -8,9 +8,16 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
+  @UseGuards(JwtAuthGuard)
+    @Get('my-active')
+    async getMyActiveRoom(@Request() req) {
+      return this.roomsService.getMyActiveRoom(req.user.sub);
+    }
+
+  @UseGuards(JwtAuthGuard) 
   @Get('public')
-  async getPublicRooms() {
-    return this.roomsService.getPublicRooms();
+  async getPublicRooms(@Request() req) {
+    return this.roomsService.getPublicRooms(req.user.sub);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -40,8 +47,15 @@ export class RoomsController {
     const hostId = req.user.sub;
     return this.roomsService.endRoom(roomId, hostId);
   }
+
   @Get(':id/messages')
   async getRoomMessages(@Param('id') roomId: string) {
     return this.roomsService.getRoomMessages(roomId);
   }
+  
+  @Get(':id/status')
+  async getRoomStatus(@Param('id') id: string) {
+    return this.roomsService.getRoomStatus(id);
+  }
+  
 }

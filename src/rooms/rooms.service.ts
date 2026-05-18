@@ -11,63 +11,42 @@ export class RoomsService {
   constructor(private prisma: PrismaService) {}
 
   async createRoom(hostId: string, data: CreateRoomDto) {
-    let accessPinHash: string | null = null;
-    
-    if (data.requiresPin && data.pin) {
-      const saltRounds = 10;
-      accessPinHash = await bcrypt.hash(data.pin, saltRounds);
-    }
+    await this.prisma.room.updateMany({
+      where: { hostId: hostId, isActive: true },
+      data: { isActive: false, endedAt: new Date() }
+    });
 
-    const newRoom = await this.prisma.room.create({
+    return this.prisma.room.create({
       data: {
-        hostId: hostId, 
+        hostId,
         title: data.title,
         isPublic: data.isPublic,
         requiresPin: data.requiresPin,
-        accessPinHash: accessPinHash, 
+        accessPinHash: data.pin ? await bcrypt.hash(data.pin, 10) : null,
         isActive: true,
       },
-      select: {
-        id: true, 
-        title: true,
-        requiresPin: true,
-        createdAt: true,
-      },
     });
-
-    const hostToken = await this.generateLiveKitToken(
-      newRoom.id, 
-      'Host',  
-      hostId, 
-      'HOST'
-    );
-
-    return {
-      roomId: newRoom.id,
-      hostToken: hostToken,
-      livekitUrl: process.env.LIVEKIT_URL
-    };
   }
 
-  async getPublicRooms() {
+  async getMyActiveRoom(hostId: string) {
+    return this.prisma.room.findFirst({
+      where: { hostId: hostId, isActive: true },
+      // Traemos los datos básicos para armar la tarjeta
+      select: { id: true, title: true, isPublic: true, requiresPin: true, createdAt: true } 
+    });
+  }
+
+  async getPublicRooms(userId: string) {
     return this.prisma.room.findMany({
       where: {
+        isActive: true,
         isPublic: true,
-        isActive: true, 
+        hostId: { not: userId }
       },
-      select: {
-        id: true,
-        title: true,
-        createdAt: true,
-        host: {
-          select: {
-            displayName: true, 
-          },
-        },
+      include: {
+        host: { select: { displayName: true } }
       },
-      orderBy: {
-        createdAt: 'desc', 
-      },
+      orderBy: { createdAt: 'desc' }
     });
   }
 
@@ -210,5 +189,21 @@ export class RoomsService {
     });
 
     return await at.toJwt();
+  }
+  async getRoomStatus(roomId: string) {
+    try {
+      const room = await this.prisma.room.findUnique({
+        where: { id: roomId },
+        select: { id: true, requiresPin: true } 
+      });
+
+      if (!room) {
+        return { exists: false, requiresPin: false };
+      }
+
+      return { exists: true, requiresPin: room.requiresPin };
+    } catch (error) {
+      return { exists: false, requiresPin: false }; 
+    }
   }
 }
