@@ -4,7 +4,7 @@ import type { Request } from 'express';
 import { WebhookReceiver } from 'livekit-server-sdk';
 import { RoomStateService } from '../events/room-state.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { EventsGateway } from '../events/events.gateway';
+import { RoomsGateway } from '../rooms/rooms.gateway';
 
 @Controller('webhooks')
 export class WebhooksController {
@@ -14,7 +14,7 @@ export class WebhooksController {
   constructor(
     private prisma: PrismaService,
     private roomStateService: RoomStateService,
-    private eventsGateway: EventsGateway
+    private roomsGateway: RoomsGateway
   ) {
     this.receiver = new WebhookReceiver(
       process.env.LIVEKIT_API_KEY || '',
@@ -45,7 +45,7 @@ export class WebhooksController {
         const userId = event.participant?.identity;
         if (userId) {
           this.roomStateService.removeParticipant(roomId, userId);
-          this.eventsGateway.server.to(roomId).emit('room:state_changed', {
+          this.roomsGateway.server.to(roomId).emit('room:state_changed', {
             roomId,
             participants: this.roomStateService.getRoomState(roomId),
           });
@@ -65,7 +65,7 @@ export class WebhooksController {
           this.roomStateService.removeParticipant(roomId, participant.userId);
         });
 
-        this.eventsGateway.server.to(roomId).emit('room:state_changed', {
+        this.roomsGateway.server.to(roomId).emit('room:state_changed', {
           roomId,
           participants: [],
         });

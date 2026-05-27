@@ -191,19 +191,23 @@ export class RoomsService {
     return await at.toJwt();
   }
   async getRoomStatus(roomId: string) {
-    try {
-      const room = await this.prisma.room.findUnique({
-        where: { id: roomId },
-        select: { id: true, requiresPin: true } 
-      });
+      try {
+        const room = await this.prisma.room.findUnique({
+          where: { id: roomId },
+          select: { id: true, requiresPin: true, hostId: true } 
+        });
 
-      if (!room) {
-        return { exists: false, requiresPin: false };
+        if (!room) {
+          return { exists: false, requiresPin: false };
+        }
+
+        return { 
+          exists: true, 
+          requiresPin: room.requiresPin, 
+          creatorId: room.hostId 
+        };
+      } catch (error) {
+        return { exists: false, requiresPin: false }; 
       }
-
-      return { exists: true, requiresPin: room.requiresPin };
-    } catch (error) {
-      return { exists: false, requiresPin: false }; 
     }
-  }
 }
