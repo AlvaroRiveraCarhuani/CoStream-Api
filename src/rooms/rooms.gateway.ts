@@ -1,3 +1,5 @@
+// src/rooms/rooms.gateway.ts
+
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -10,6 +12,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { extractAndCleanJwt } from '../auth/utils/cookie.util';
+import { PrismaService } from '../prisma/prisma.service';
 
 @WebSocketGateway({
   cors: {
@@ -18,15 +21,17 @@ import { extractAndCleanJwt } from '../auth/utils/cookie.util';
     methods: ['GET', 'POST'],
     allowedHeaders: ['my-custom-header'],
   },
-  transports: ['websocket'], // Forzar solo WebSocket, sin polling
+  transports: ['websocket'],
 })
 export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private jwtService: JwtService,
+    private prisma: PrismaService,
+  ) {}
 
-  // 1. INTERCEPTOR DE CONEXIÓN
   async handleConnection(client: Socket) {
     try {
       const cookieHeader = client.handshake.headers.cookie;
@@ -40,81 +45,119 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
 
       client.data.user = payload;
-      console.log(`✅ Socket conectado: ${payload.email} (ID: ${client.id})`);
     } catch (error) {
-      console.error(`❌ Conexión Socket rechazada: ${error.message}`);
       client.disconnect(true);
     }
   }
 
-  // 2. MANEJADOR DE DESCONEXIÓN
-  handleDisconnect(client: Socket) {
-    console.log(`❌ Socket desconectado (ID: ${client.id})`);
-    // Opcional: emitir evento de salida a la sala
-  }
-
-  // 3. UNIRSE A SALA
-  @SubscribeMessage('room:join')
-  handleJoinRoom(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { roomId: string },
-  ) {
-    if (!client.data.user) return;
-
-    client.join(payload.roomId);
-
-    this.server.to(payload.roomId).emit('room:participant_joined', {
-      user: {
-        id: client.data.user.sub,
-        email: client.data.user.email,
-        displayName: client.data.user.email.split('@')[0],
-      },
-      socketId: client.id,
-      timestamp: new Date().toISOString(),
-    });
-
-    console.log(`🚪 Socket ${client.id} se unió a la sala: ${payload.roomId}`);
-  }
-
-  // 4. MOTOR DE CHAT
-  @SubscribeMessage('chat:send')
-  handleChatMessage(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() payload: any,
-  ) {
-    console.log(`⚡ LLEGÓ UN MENSAJE DEL FRONTEND:`, payload);
-
-    try {
-      const user = client.data.user;
-
-      const message = {
-        id: Date.now().toString(),
-        senderId: user.sub,
-        senderName: user.email.split('@')[0],
-        avatar: user.avatar,
-        text: payload.text,
-        type: payload.type || 'text',
-        timestamp: new Date().toISOString(),
-      };
-
-      this.server.to(payload.roomId).emit('chat:broadcast', message);
-      console.log(`✅ MENSAJE REPARTIDO A LA SALA ${payload.roomId}`);
-    } catch (error) {
-      console.error('❌ Error fatal al procesar el mensaje:', error);
+  async handleDisconnect(client: Socket) {
+    const user = client.data.user;
+    const roomId = client.data.roomId;
+    if (user && roomId) {
+      this.server.to(roomId).emit('room:user_left', { userId: user.sub });
     }
   }
 
-  // 5. GRITO DE MUERTE (Cierre de sala)
+@SubscribeMessage('room:join')
+async handleJoinRoom(
+  @ConnectedSocket() client: Socket,
+  @MessageBody() payload: { roomId: string },
+) {
+  if (!client.data.user) return;
+  const userId = client.data.user.sub;
+  const roomId = payload.roomId;
+
+  // Guardar roomId en el socket
+  client.data.roomId = roomId;
+  client.join(roomId);
+
+  // Obtener la sala para saber quién es el host
+  const room = await this.prisma.room.findUnique({
+    where: { id: roomId },
+    select: { hostId: true }
+  });
+
+  const isHost = room?.hostId === userId;
+  const role = isHost ? 'HOST' : 'VIEWER';
+
+  // 1. Emitir a los demás que un nuevo participante se ha unido
+  this.server.to(roomId).emit('room:participant_joined', {
+    user: {
+      id: userId,
+      email: client.data.user.email,
+      displayName: client.data.user.email.split('@')[0],
+      role: role,        // ✅ ahora enviamos el rol real
+    },
+    socketId: client.id,
+    timestamp: new Date().toISOString(),
+  });
+
+  // 2. Enviar al recién llegado la lista de participantes actuales (para sincronizar)
+  const socketsInRoom = await this.server.in(roomId).fetchSockets();
+  const participants = await Promise.all(socketsInRoom.map(async (socket) => {
+    const userData = socket.data.user;
+    if (!userData) return null;
+    const participantRoom = await this.prisma.room.findUnique({ where: { id: roomId }, select: { hostId: true } });
+    const isParticipantHost = participantRoom?.hostId === userData.sub;
+    return {
+      user: {
+        id: userData.sub,
+        email: userData.email,
+        displayName: userData.email.split('@')[0],
+        role: isParticipantHost ? 'HOST' : 'VIEWER',
+      },
+      socketId: socket.id,
+    };
+  }));
+
+  client.emit('room:current_participants', participants.filter(p => p !== null));
+}
+
+  @SubscribeMessage('chat:send')
+  async handleChatMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { roomId: string; text: string; type?: string },
+  ) {
+    const user = client.data.user;
+    if (!user || !payload.roomId) return;
+
+    const savedMessage = await this.prisma.message.create({
+      data: {
+        roomId: payload.roomId,
+        senderName: user.email.split('@')[0],
+        content: payload.text,
+      },
+    });
+
+    const messageToSend = {
+      id: savedMessage.id,
+      senderId: user.sub,
+      senderName: savedMessage.senderName,
+      text: savedMessage.content,
+      type: payload.type || 'text',
+      timestamp: savedMessage.sentAt.toISOString(),
+    };
+
+    this.server.to(payload.roomId).emit('chat:broadcast', messageToSend);
+  }
+
   @SubscribeMessage('room:end_broadcast')
-  handleEndRoom(
+  async handleEndRoom(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { roomId: string },
   ) {
-    // Verificar que el cliente que envía el evento sea el host
     if (!client.data.user) return;
-
-    // Emitir a todos los participantes de la sala que deben salir
     this.server.to(payload.roomId).emit('room:kicked');
-    console.log(`🛑 Sala ${payload.roomId} destruida por el anfitrión.`);
+  }
+
+  @SubscribeMessage('room:leave')
+  handleLeaveRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { roomId: string },
+  ) {
+    if (!client.data.user) return;
+    client.leave(payload.roomId);
+    this.server.to(payload.roomId).emit('room:user_left', { userId: client.data.user.sub });
+    client.emit('room:left', { success: true });
   }
 }

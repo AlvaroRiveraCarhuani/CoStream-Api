@@ -31,7 +31,6 @@ export class RoomsService {
   async getMyActiveRoom(hostId: string) {
     return this.prisma.room.findFirst({
       where: { hostId: hostId, isActive: true },
-      // Traemos los datos básicos para armar la tarjeta
       select: { id: true, title: true, isPublic: true, requiresPin: true, createdAt: true } 
     });
   }
@@ -108,11 +107,13 @@ export class RoomsService {
 
     return { success: true, message: 'Transmisión finalizada correctamente.' };
   }
+
+  // ✅ MODIFICADO: getRoomMessages ahora devuelve el formato esperado por el frontend
   async getRoomMessages(roomId: string) {
     const room = await this.prisma.room.findUnique({ where: { id: roomId } });
     if (!room) throw new NotFoundException('Sala no encontrada.');
 
-    return this.prisma.message.findMany({
+    const messages = await this.prisma.message.findMany({
       where: { roomId: roomId },
       orderBy: { sentAt: 'asc' },
       select: {
@@ -121,14 +122,18 @@ export class RoomsService {
         content: true,
         sentAt: true,
       }
-    }).then(messages => messages.map(msg => ({
+    });
+
+    return messages.map(msg => ({
       id: msg.id,
+      senderId: 'unknown', // Opcional; no se guarda en Message
       senderName: msg.senderName,
-      role: 'VIEWER', 
-      content: msg.content,
-      timestamp: msg.sentAt,
-    })));
+      text: msg.content,      // Renombramos content -> text
+      type: 'text',
+      timestamp: msg.sentAt.toISOString(),
+    }));
   }
+
   async getRoomHistory(hostId: string) {
     const rooms = await this.prisma.room.findMany({
       where: {
@@ -190,24 +195,25 @@ export class RoomsService {
 
     return await at.toJwt();
   }
+
   async getRoomStatus(roomId: string) {
-      try {
-        const room = await this.prisma.room.findUnique({
-          where: { id: roomId },
-          select: { id: true, requiresPin: true, hostId: true } 
-        });
+    try {
+      const room = await this.prisma.room.findUnique({
+        where: { id: roomId },
+        select: { id: true, requiresPin: true, hostId: true } 
+      });
 
-        if (!room) {
-          return { exists: false, requiresPin: false };
-        }
-
-        return { 
-          exists: true, 
-          requiresPin: room.requiresPin, 
-          creatorId: room.hostId 
-        };
-      } catch (error) {
-        return { exists: false, requiresPin: false }; 
+      if (!room) {
+        return { exists: false, requiresPin: false };
       }
+
+      return { 
+        exists: true, 
+        requiresPin: room.requiresPin, 
+        creatorId: room.hostId 
+      };
+    } catch (error) {
+      return { exists: false, requiresPin: false }; 
     }
+  }
 }

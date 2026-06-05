@@ -24,7 +24,7 @@ export class JwtAuthGuard implements CanActivate {
       return true;
       
     } catch (error) {
-      console.error('⚠️ Fallo en verificación JWT HTTP:', error.message);
+      console.error('Fallo en verificación JWT HTTP:', error.message);
       
       if (response && typeof response.clearCookie === 'function') {
         response.clearCookie('jwt');
