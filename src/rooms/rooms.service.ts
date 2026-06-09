@@ -11,12 +11,13 @@ export class RoomsService {
   constructor(private prisma: PrismaService) {}
 
   async createRoom(hostId: string, data: CreateRoomDto) {
+    // Cerrar salas activas previas del mismo host
     await this.prisma.room.updateMany({
       where: { hostId: hostId, isActive: true },
       data: { isActive: false, endedAt: new Date() }
     });
 
-    return this.prisma.room.create({
+    const newRoom = await this.prisma.room.create({
       data: {
         hostId,
         title: data.title,
@@ -26,6 +27,18 @@ export class RoomsService {
         isActive: true,
       },
     });
+
+    // Generar token para el host (puede publicar y suscribirse)
+    const hostToken = await this.generateLiveKitToken(newRoom.id, hostId, 'HOST');
+
+    return {
+      id: newRoom.id,
+      title: newRoom.title,
+      isPublic: newRoom.isPublic,
+      requiresPin: newRoom.requiresPin,
+      hostToken: hostToken,
+      livekitUrl: process.env.LIVEKIT_URL,
+    };
   }
 
   async getMyActiveRoom(hostId: string) {
@@ -77,9 +90,9 @@ export class RoomsService {
 
     const guestToken = await this.generateLiveKitToken(
       room.id,
-      data.displayName,
       guestIdentity,
-      'VIEWER'
+      'VIEWER',
+      data.displayName
     );
 
     return {
@@ -108,7 +121,6 @@ export class RoomsService {
     return { success: true, message: 'Transmisión finalizada correctamente.' };
   }
 
-  // ✅ MODIFICADO: getRoomMessages ahora devuelve el formato esperado por el frontend
   async getRoomMessages(roomId: string) {
     const room = await this.prisma.room.findUnique({ where: { id: roomId } });
     if (!room) throw new NotFoundException('Sala no encontrada.');
@@ -126,9 +138,9 @@ export class RoomsService {
 
     return messages.map(msg => ({
       id: msg.id,
-      senderId: 'unknown', // Opcional; no se guarda en Message
+      senderId: 'unknown',
       senderName: msg.senderName,
-      text: msg.content,      // Renombramos content -> text
+      text: msg.content,
       type: 'text',
       timestamp: msg.sentAt.toISOString(),
     }));
@@ -176,24 +188,28 @@ export class RoomsService {
     });
   }
 
-  private async generateLiveKitToken(roomId: string, participantName: string, identity: string, role: string): Promise<string> {
-    const at = new AccessToken(
-      process.env.LIVEKIT_API_KEY,
-      process.env.LIVEKIT_API_SECRET,
-      {
-        identity: identity, 
-        name: participantName,
-      },
-    );
+  // Método privado para generar tokens de LiveKit
+  private async generateLiveKitToken(roomId: string, identity: string, role: string, participantName?: string): Promise<string> {
+    const apiKey = process.env.LIVEKIT_API_KEY;
+    const apiSecret = process.env.LIVEKIT_API_SECRET;
+    
+    if (!apiKey || !apiSecret) {
+      throw new Error('Faltan las credenciales de LiveKit en el entorno');
+    }
+
+    const at = new AccessToken(apiKey, apiSecret, {
+      identity: identity,
+      name: participantName || identity,
+    });
 
     at.addGrant({
       roomJoin: true,
       room: roomId,
-      canPublish: role === 'HOST' || role === 'PRESENTER', 
-      canSubscribe: true, 
+      canPublish: role === 'HOST' || role === 'PRESENTER',
+      canSubscribe: true,               // Todos pueden suscribirse
     });
 
-    return await at.toJwt();
+    return at.toJwt();
   }
 
   async getRoomStatus(roomId: string) {

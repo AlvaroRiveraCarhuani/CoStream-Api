@@ -9,10 +9,10 @@ export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
   @UseGuards(JwtAuthGuard)
-    @Get('my-active')
-    async getMyActiveRoom(@Request() req) {
-      return this.roomsService.getMyActiveRoom(req.user.sub);
-    }
+  @Get('my-active')
+  async getMyActiveRoom(@Request() req) {
+    return this.roomsService.getMyActiveRoom(req.user.sub);
+  }
 
   @UseGuards(JwtAuthGuard) 
   @Get('public')
@@ -33,6 +33,7 @@ export class RoomsController {
     return this.roomsService.joinRoom(body);
   }
 
+  // ✅ MODIFICADO: Ahora devuelve el token de host y la URL de LiveKit
   @UseGuards(JwtAuthGuard)
   @Post()
   async createRoom(@Request() req, @Body() body: CreateRoomDto) {
@@ -57,5 +58,4 @@ export class RoomsController {
   async getRoomStatus(@Param('id') id: string) {
     return this.roomsService.getRoomStatus(id);
   }
-  
 }
