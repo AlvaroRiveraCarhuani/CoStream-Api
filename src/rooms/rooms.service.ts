@@ -4,14 +4,12 @@ import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { AccessToken } from 'livekit-server-sdk';
 import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
 
 @Injectable()
 export class RoomsService {
   constructor(private prisma: PrismaService) {}
 
   async createRoom(hostId: string, data: CreateRoomDto) {
-    // Cerrar salas activas previas del mismo host
     await this.prisma.room.updateMany({
       where: { hostId: hostId, isActive: true },
       data: { isActive: false, endedAt: new Date() }
@@ -28,7 +26,6 @@ export class RoomsService {
       },
     });
 
-    // Generar token para el host (puede publicar y suscribirse)
     const hostToken = await this.generateLiveKitToken(newRoom.id, hostId, 'HOST');
 
     return {
@@ -62,7 +59,8 @@ export class RoomsService {
     });
   }
 
-  async joinRoom(data: JoinRoomDto) {
+  // ✅ MÉTODO CORREGIDO: ahora recibe userId y lo usa como identity
+  async joinRoom(userId: string, data: JoinRoomDto) {
     const room = await this.prisma.room.findUnique({
       where: { id: data.roomId },
     });
@@ -75,23 +73,21 @@ export class RoomsService {
       if (!data.pin) {
         throw new UnauthorizedException('Esta sala requiere un PIN de acceso.');
       }
-      
       if (!room.accessPinHash) {
         throw new UnauthorizedException('Error de configuración en la sala.');
       }
-
       const isPinValid = await bcrypt.compare(data.pin, room.accessPinHash);
       if (!isPinValid) {
         throw new UnauthorizedException('El PIN ingresado es incorrecto.');
       }
     }
 
-    const guestIdentity = crypto.randomUUID(); 
-
+    const guestRole = 'PRESENTER';
+    // ✅ Usamos el userId real, NO un UUID aleatorio
     const guestToken = await this.generateLiveKitToken(
       room.id,
-      guestIdentity,
-      'VIEWER',
+      userId,
+      guestRole,
       data.displayName
     );
 
@@ -99,7 +95,7 @@ export class RoomsService {
       success: true,
       guestToken: guestToken,
       livekitUrl: process.env.LIVEKIT_URL,
-      assignedRole: 'VIEWER', 
+      assignedRole: guestRole,
     };
   }
 
@@ -115,7 +111,7 @@ export class RoomsService {
 
     await this.prisma.room.update({
       where: { id: roomId },
-      data: { isActive: false },
+      data: { isActive: false, endedAt: new Date() },
     });
 
     return { success: true, message: 'Transmisión finalizada correctamente.' };
@@ -188,11 +184,15 @@ export class RoomsService {
     });
   }
 
-  // Método privado para generar tokens de LiveKit
-  private async generateLiveKitToken(roomId: string, identity: string, role: string, participantName?: string): Promise<string> {
+  private async generateLiveKitToken(
+    roomId: string,
+    identity: string,
+    role: string,
+    participantName?: string,
+  ): Promise<string> {
     const apiKey = process.env.LIVEKIT_API_KEY;
     const apiSecret = process.env.LIVEKIT_API_SECRET;
-    
+
     if (!apiKey || !apiSecret) {
       throw new Error('Faltan las credenciales de LiveKit en el entorno');
     }
@@ -202,11 +202,12 @@ export class RoomsService {
       name: participantName || identity,
     });
 
+    const canPublish = role === 'HOST' || role === 'PRESENTER';
     at.addGrant({
       roomJoin: true,
       room: roomId,
-      canPublish: role === 'HOST' || role === 'PRESENTER',
-      canSubscribe: true,               // Todos pueden suscribirse
+      canPublish: canPublish,
+      canSubscribe: true,
     });
 
     return at.toJwt();

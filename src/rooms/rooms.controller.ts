@@ -28,12 +28,13 @@ export class RoomsController {
   }
 
   @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)  // ✅ AGREGADO: ahora requiere autenticación
   @Post('join')
-  async joinRoom(@Body() body: JoinRoomDto) {
-    return this.roomsService.joinRoom(body);
+  async joinRoom(@Request() req, @Body() body: JoinRoomDto) {
+    const userId = req.user.sub;  // ✅ obtenemos userId real
+    return this.roomsService.joinRoom(userId, body);
   }
 
-  // ✅ MODIFICADO: Ahora devuelve el token de host y la URL de LiveKit
   @UseGuards(JwtAuthGuard)
   @Post()
   async createRoom(@Request() req, @Body() body: CreateRoomDto) {
