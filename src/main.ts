@@ -8,6 +8,15 @@ import cookieParser from 'cookie-parser';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
+  app.enableCors({
+    origin: [
+      'http://localhost:4200',
+      'https://co-stream-web-nine.vercel.app',   
+      process.env.FRONTEND_URL,                 
+    ].filter(Boolean),
+    credentials: true,
+  });
+
   app.use(helmet());
   app.use(cookieParser()); 
 
@@ -18,11 +27,6 @@ async function bootstrap() {
     forbidNonWhitelisted: true,
     transform: true,
   }));
-
-  app.enableCors({
-      origin: ['http://localhost:4200', 'https://co-stream-web.vercel.app'],
-      credentials: true,
-  });
 
   app.setGlobalPrefix('api', {
     exclude: [{ path: 'webhooks/livekit', method: RequestMethod.POST }],
