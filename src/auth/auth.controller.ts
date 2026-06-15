@@ -10,13 +10,11 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() body: any, @Res() res: Response) {
-    // Valida credenciales con tu servicio
     const result = await this.authService.login(body.email, body.password);
 
-    // Inyecta la cookie segura
     res.cookie('jwt', result.accessToken, {
       httpOnly: true,
-      secure: false, // En entornos productivos con HTTPS esto debe ser true
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 1000 * 60 * 60 * 24, 
     });
@@ -24,7 +22,6 @@ export class AuthController {
     return res.status(200).json({ message: 'Login exitoso' });
   }
 
-  // --- LOGINS CON GOOGLE ---
   @Get('google')
   @UseGuards(AuthGuard('google'))
   async googleAuth(@Req() _req: Request) {
@@ -38,19 +35,19 @@ export class AuthController {
     
     res.cookie('jwt', token, {
       httpOnly: true,
-      secure: false, 
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 1000 * 60 * 60 * 24, 
     });
 
-    // Redirección directa y limpia hacia el frontend
-    res.redirect('http://localhost:4200/login/success');
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
+    res.redirect(`${frontendUrl}/login/success`);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   getProfile(@Req() req: any) {
-    console.log('Cookies recibidas:', req.cookies); // <--- MIRA TU TERMINAL
+    console.log('Cookies recibidas:', req.cookies);
     return req.user; 
   }
 
