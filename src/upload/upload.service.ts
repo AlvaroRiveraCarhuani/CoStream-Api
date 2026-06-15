@@ -4,8 +4,8 @@ import * as streamifier from 'streamifier';
 
 @Injectable()
 export class UploadService {
-  uploadFile(file: Express.Multer.File): Promise<any> {
-    return new Promise((resolve, reject) => {
+  uploadFile(file: any): Promise<any> {
+  return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         { folder: 'costream-assets' },
         (error, result) => {

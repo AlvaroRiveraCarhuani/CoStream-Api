@@ -10,8 +10,8 @@ export class UploadController {
   @UseGuards(JwtAuthGuard)
   @Post()
   @UseInterceptors(FileInterceptor('file'))
-  async uploadFile(@UploadedFile() file: Express.Multer.File) {
-    if (!file) {
+  async uploadFile(@UploadedFile() file: any) {
+      if (!file) {
       throw new BadRequestException('Ningún archivo fue proporcionado');
     }
 
