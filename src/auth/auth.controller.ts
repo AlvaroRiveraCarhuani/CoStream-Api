@@ -33,7 +33,12 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
+    console.log('[Google Callback] req.user recibido:', JSON.stringify(req.user));
+    console.log('[Google Callback] NODE_ENV:', process.env.NODE_ENV);
+    console.log('[Google Callback] FRONTEND_URL:', process.env.FRONTEND_URL);
+
     const token = await this.authService.loginWithGoogle(req.user);
+    console.log('[Google Callback] Token generado (primeros 20 chars):', token?.substring(0, 20));
 
     const isProduction = process.env.NODE_ENV === 'production';
 
@@ -45,13 +50,16 @@ export class AuthController {
     });
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
+    console.log('[Google Callback] Redirigiendo a:', `${frontendUrl}/login/success`);
     res.redirect(`${frontendUrl}/login/success`);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   getProfile(@Req() req: any) {
-    console.log('Cookies recibidas:', req.cookies);
+    console.log('[Profile] Cookies recibidas:', JSON.stringify(req.cookies));
+    console.log('[Profile] Headers origin:', req.headers.origin);
+    console.log('[Profile] User en request:', JSON.stringify(req.user));
     return req.user;
   }
 
