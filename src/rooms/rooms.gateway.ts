@@ -49,10 +49,17 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async handleConnection(client: Socket) {
     try {
-      const cookieHeader = client.handshake.headers.cookie;
-      if (!cookieHeader) throw new Error('No hay cookies');
-      const token = extractAndCleanJwt(cookieHeader);
-      if (!token) throw new Error('Token no encontrado');
+      // Prioridad 1: token en handshake.auth (cross-origin desde localStorage)
+      let token: string | null = client.handshake.auth?.token ?? null;
+
+      // Prioridad 2: cookie jwt (same-origin o entornos donde las cookies funcionan)
+      if (!token) {
+        const cookieHeader = client.handshake.headers.cookie;
+        if (!cookieHeader) throw new Error('No hay token ni cookies');
+        token = extractAndCleanJwt(cookieHeader);
+        if (!token) throw new Error('Token no encontrado en cookies');
+      }
+
       const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_SECRET || 'super_secret_costream_key_2026',
       });
