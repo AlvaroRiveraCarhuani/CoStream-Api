@@ -10,7 +10,17 @@ export class JwtAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
-    const token = extractAndCleanJwt(request.cookies);
+
+    // 1. Intentar extraer desde cookie (login tradicional)
+    let token = extractAndCleanJwt(request.cookies);
+
+    // 2. Si no hay cookie, intentar desde Authorization: Bearer (Google OAuth / localStorage)
+    if (!token) {
+      const authHeader = request.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
     
     if (!token) {
       throw new UnauthorizedException('No tienes autorización para realizar esta acción.');
