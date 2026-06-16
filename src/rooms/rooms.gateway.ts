@@ -15,7 +15,11 @@ import { RoomServiceClient } from 'livekit-server-sdk';
 
 @WebSocketGateway({
   cors: {
-    origin: 'http://localhost:4200',
+    origin: [
+      'http://localhost:4200',
+      'https://co-stream-web-nine.vercel.app',
+      process.env.FRONTEND_URL,
+    ].filter(Boolean),
     credentials: true,
     methods: ['GET', 'POST'],
   },
