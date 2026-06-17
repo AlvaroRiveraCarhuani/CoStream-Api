@@ -81,7 +81,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('room:join')
   async handleJoinRoom(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { roomId: string },
+    @MessageBody() payload: { roomId: string, displayName?: string },
   ) {
     if (!client.data.user) return;
     const userId = client.data.user.sub;
@@ -107,11 +107,14 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
 
 
+    const finalDisplayName = payload.displayName || client.data.user.displayName || client.data.user.email.split('@')[0];
+    client.data.user.currentDisplayName = finalDisplayName;
+
     this.server.to(roomId).emit('room:participant_joined', {
       user: {
         id: userId,
         email: client.data.user.email,
-        displayName: client.data.user.email.split('@')[0],
+        displayName: finalDisplayName,
         role: role,
       },
       socketId: client.id,
@@ -128,7 +131,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         user: {
           id: userData.sub,
           email: userData.email,
-          displayName: userData.email.split('@')[0],
+          displayName: userData.currentDisplayName || userData.displayName || userData.email.split('@')[0],
           role: isParticipantHost ? 'HOST' : 'PRESENTER',
         },
         socketId: socket.id,
@@ -145,10 +148,12 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const user = client.data.user;
     if (!user || !payload.roomId) return;
 
+    const senderName = user.currentDisplayName || user.displayName || user.email.split('@')[0];
+
     const savedMessage = await this.prisma.message.create({
       data: {
         roomId: payload.roomId,
-        senderName: user.email.split('@')[0],
+        senderName: senderName,
         content: payload.text,
       },
     });
