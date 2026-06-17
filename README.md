@@ -4,16 +4,16 @@
 
 Este repositorio contiene la lógica del servidor (Backend), la API REST, y los WebSockets de orquestación desarrollados con **NestJS**.
 
-## 🚀 Arquitectura y Tecnologías
+## Arquitectura y Tecnologías
 
-- **Framework:** [NestJS](https://nestjs.com/) (Node.js con TypeScript)
+- **Framework:** NestJS 11 (Node.js con TypeScript)
 - **Base de Datos:** PostgreSQL
-- **ORM:** Prisma
-- **WebRTC & Streaming:** [LiveKit Server SDK](https://livekit.io/)
-- **Tiempo Real (Señalización/Chat):** Socket.io
+- **ORM:** Prisma 7
+- **WebRTC & Streaming:** LiveKit Server SDK (v2.15+)
+- **Tiempo Real (Señalización/Chat):** Socket.io (v4.8+)
 - **Autenticación:** JWT (JSON Web Tokens)
 
-## ✨ Responsabilidades del Backend
+## Responsabilidades del Backend
 
 - **Orquestación de Salas:** Creación, validación (códigos PIN) y cierre de salas de reuniones/transmisión.
 - **Gestión de WebRTC (LiveKit):** 
@@ -22,7 +22,7 @@ Este repositorio contiene la lógica del servidor (Backend), la API REST, y los 
 - **Sockets en Tiempo Real:** Emisión de eventos globales usando `Socket.io` para actualizar el historial del chat, manejar las entradas/salidas de participantes y notificar expulsiones o cambios forzados de hardware a clientes específicos.
 - **Base de datos relacional:** Administración de la persistencia (Usuarios, Salas, Mensajes) mediante el esquema de Prisma.
 
-## 🛠️ Instalación y Configuración
+## Instalación y Configuración
 
 ### 1. Clonar el repositorio
 ```bash
@@ -70,7 +70,7 @@ npm run start:dev
 npm run start:prod
 ```
 
-## 🧪 Pruebas y Tests
+## Pruebas y Tests
 
 Para ejecutar la suite de pruebas unitarias o e2e integradas (Jest):
 ```bash
@@ -79,6 +79,6 @@ npm run test:e2e
 npm run test:cov
 ```
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto es propiedad de sus creadores y está restringido a los términos y condiciones especificados por el equipo de CoStream.
