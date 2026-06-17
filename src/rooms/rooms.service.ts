@@ -26,6 +26,17 @@ export class RoomsService {
       },
     });
 
+    const hostUser = await this.prisma.user.findUnique({ where: { id: hostId } });
+    if (hostUser) {
+      await this.prisma.participant.create({
+        data: {
+          roomId: newRoom.id,
+          displayName: hostUser.displayName,
+          role: 'HOST',
+        }
+      });
+    }
+
     const hostToken = await this.generateLiveKitToken(newRoom.id, hostId, 'HOST');
 
     return {
@@ -46,7 +57,7 @@ export class RoomsService {
   }
 
   async getPublicRooms(userId: string) {
-    return this.prisma.room.findMany({
+    const rooms = await this.prisma.room.findMany({
       where: {
         isActive: true,
         isPublic: true,
@@ -57,6 +68,15 @@ export class RoomsService {
       },
       orderBy: { createdAt: 'desc' }
     });
+
+    return rooms.map(room => ({
+      id: room.id,
+      title: room.title,
+      isPublic: room.isPublic,
+      requiresPin: room.requiresPin,
+      createdAt: room.createdAt,
+      hostName: room.host?.displayName || 'Usuario'
+    }));
   }
 
 
@@ -83,6 +103,23 @@ export class RoomsService {
     }
 
     const guestRole = 'PRESENTER';
+
+    const existingParticipant = await this.prisma.participant.findFirst({
+      where: {
+        roomId: room.id,
+        displayName: data.displayName,
+      }
+    });
+
+    if (!existingParticipant) {
+      await this.prisma.participant.create({
+        data: {
+          roomId: room.id,
+          displayName: data.displayName,
+          role: guestRole,
+        }
+      });
+    }
 
     const guestToken = await this.generateLiveKitToken(
       room.id,
