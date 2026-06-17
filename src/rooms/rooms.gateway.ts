@@ -246,4 +246,24 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.participantsMap.delete(data.targetUserId);
     }
   }
+
+  @SubscribeMessage('mod:promote')
+  async handleModPromote(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { roomId: string; targetUserId: string },
+  ) {
+    const host = client.data.user;
+    if (!host) return;
+    
+    // Verificar que el remitente es el host
+    const room = await this.prisma.room.findFirst({ where: { id: data.roomId, hostId: host.sub, isActive: true } });
+    if (!room) return;
+
+    // Obtener el participante objetivo
+    const target = this.participantsMap.get(data.targetUserId);
+    if (target) {
+      // Emitimos a toda la sala que el usuario ha subido al escenario
+      this.server.to(data.roomId).emit('room:promoted', { userId: data.targetUserId });
+    }
+  }
 }
