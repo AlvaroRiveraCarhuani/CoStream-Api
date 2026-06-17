@@ -23,18 +23,18 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private prisma: PrismaService,
   ) {}
 
-  // FASE 1: Seguridad de Conexión
+
   async handleConnection(client: Socket) {
     try {
       const token = client.handshake.auth.token;
       if (!token) throw new Error('Token missing');
 
-      // Verificamos el token firmado por LiveKit (El SDK usa la Secret Key para firmar)
+
       const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.LIVEKIT_API_SECRET,
       });
 
-      // Extraemos datos del JWT de LiveKit
+
       const userId = payload.sub; 
       const name = payload.name;
       const roomId = payload.video?.room;
@@ -42,12 +42,12 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       
       const role = isHost ? 'HOST' : 'VIEWER';
 
-      // Almacenamos el userId y roomId en el objeto socket para fácil acceso
+
       client.data = { userId, roomId, name, role };
       
       client.join(roomId);
 
-      // FASE 3: Actualizar motor de estado en memoria
+
       this.roomStateService.addParticipant(roomId, {
         userId,
         name,
@@ -61,7 +61,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // FASE 4: Garbage Collection
+
   handleDisconnect(client: Socket) {
     const { roomId, userId } = client.data || {};
     if (roomId && userId) {
@@ -70,7 +70,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // Retransmite el estado exacto de la sala
+
   private broadcastRoomState(roomId: string) {
     const state = {
       roomId,
@@ -79,7 +79,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(roomId).emit('room:state_changed', state);
   }
 
-  // FASE 2: Mensajería y Persistencia
+
   @SubscribeMessage('chat:send')
   async handleChatSend(@ConnectedSocket() client: Socket, @MessageBody() payload: { roomId: string; text: string }) {
     const { name, role } = client.data;
@@ -92,7 +92,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       },
     });
 
-    // 2. Construir contrato de salida
+
     const chatMessage = {
       id: savedMessage.id,
       senderName: savedMessage.senderName,
@@ -101,11 +101,11 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       timestamp: savedMessage.sentAt,
     };
 
-    // 3. Emitir a todos en la sala (incluyendo al emisor)
+
     this.server.to(payload.roomId).emit('chat:broadcast', chatMessage);
   }
 
-  // FASE 3: Gestión de Escenario
+
   @SubscribeMessage('stage:update')
   handleStageUpdate(
     @ConnectedSocket() client: Socket,
@@ -113,7 +113,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const { role: emitterRole } = client.data;
 
-    // Solo el Host puede mutar el escenario
+
     if (emitterRole !== 'HOST') return;
 
     switch (payload.action) {

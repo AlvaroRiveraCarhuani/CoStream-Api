@@ -11,10 +11,10 @@ export class JwtAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
 
-    // 1. Intentar extraer desde cookie (login tradicional)
+
     let token = extractAndCleanJwt(request.cookies);
 
-    // 2. Si no hay cookie, intentar desde Authorization: Bearer (Google OAuth / localStorage)
+
     if (!token) {
       const authHeader = request.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -34,7 +34,6 @@ export class JwtAuthGuard implements CanActivate {
       return true;
       
     } catch (error) {
-      console.error('Fallo en verificación JWT HTTP:', error.message);
       
       if (response && typeof response.clearCookie === 'function') {
         response.clearCookie('jwt');

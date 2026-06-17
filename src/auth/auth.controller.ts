@@ -21,14 +21,14 @@ export class AuthController {
       maxAge: 1000 * 60 * 60 * 24,
     });
 
-    // También retornamos el token en el body para compatibilidad con Bearer auth
+
     return res.status(200).json({ accessToken: result.accessToken, message: 'Login exitoso' });
   }
 
   @Get('google')
   @UseGuards(AuthGuard('google'))
   async googleAuth(@Req() _req: Request) {
-    // Manejado automáticamente por Passport Google
+
   }
 
   @Get('google/callback')
@@ -38,8 +38,8 @@ export class AuthController {
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
 
-    // Los browsers modernos bloquean cookies cross-site incluso con SameSite=None.
-    // Pasamos el token como query param para que el frontend lo guarde en localStorage.
+
+
     res.redirect(`${frontendUrl}/login/success?token=${token}`);
   }
 

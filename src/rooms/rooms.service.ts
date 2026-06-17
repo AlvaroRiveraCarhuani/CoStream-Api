@@ -59,7 +59,7 @@ export class RoomsService {
     });
   }
 
-  // ✅ MÉTODO CORREGIDO: ahora recibe userId y lo usa como identity
+
   async joinRoom(userId: string, data: JoinRoomDto) {
     const room = await this.prisma.room.findUnique({
       where: { id: data.roomId },
@@ -83,7 +83,7 @@ export class RoomsService {
     }
 
     const guestRole = 'PRESENTER';
-    // ✅ Usamos el userId real, NO un UUID aleatorio
+
     const guestToken = await this.generateLiveKitToken(
       room.id,
       userId,

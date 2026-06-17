@@ -28,10 +28,10 @@ export class RoomsController {
   }
 
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)  // ✅ AGREGADO: ahora requiere autenticación
+  @UseGuards(JwtAuthGuard)  
   @Post('join')
   async joinRoom(@Request() req, @Body() body: JoinRoomDto) {
-    const userId = req.user.sub;  // ✅ obtenemos userId real
+    const userId = req.user.sub;  
     return this.roomsService.joinRoom(userId, body);
   }
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback, StrategyOptions } from 'passport-google-oauth20';
-import { PrismaService } from '../../prisma/prisma.service'; // Ruta corregida
+import { PrismaService } from '../../prisma/prisma.service'; 
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
@@ -13,8 +13,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       scope: ['email', 'profile'],
     } as StrategyOptions);
     
-    // Log temporal para verificar la callback URL configurada
-    console.log('Callback URL configurada:', process.env.GOOGLE_CALLBACK_URL);
+
   }
 
   async validate(
@@ -23,8 +22,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     profile: any,
     done: VerifyCallback,
   ): Promise<any> {
-    // Log para saber que se ejecutó el validate (opcional, muy útil)
-    console.log('GoogleStrategy.validate() ejecutado para perfil:', profile.id);
+
     
     const { id, name, emails, photos } = profile; 
     const email = emails[0].value;

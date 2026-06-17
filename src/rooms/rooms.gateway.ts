@@ -49,10 +49,10 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async handleConnection(client: Socket) {
     try {
-      // Prioridad 1: token en handshake.auth (cross-origin desde localStorage)
+
       let token: string | null = client.handshake.auth?.token ?? null;
 
-      // Prioridad 2: cookie jwt (same-origin o entornos donde las cookies funcionan)
+
       if (!token) {
         const cookieHeader = client.handshake.headers.cookie;
         if (!cookieHeader) throw new Error('No hay token ni cookies');
@@ -64,9 +64,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         secret: process.env.JWT_SECRET || 'super_secret_costream_key_2026',
       });
       client.data.user = payload;
-      console.log(`Usuario conectado: ${payload.sub}`);
     } catch (error) {
-      console.log('Error en conexión, desconectando');
       client.disconnect(true);
     }
   }
@@ -75,7 +73,6 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const user = client.data.user;
     const roomId = client.data.roomId;
     if (user && roomId) {
-      console.log(`Usuario ${user.sub} desconectado de sala ${roomId}`);
       this.server.to(roomId).emit('room:user_left', { userId: user.sub });
       this.participantsMap.delete(user.sub);
     }
@@ -99,7 +96,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
 
     const isHost = room?.hostId === userId;
-    const role = isHost ? 'HOST' : 'PRESENTER'; // Ahora los invitados son PRESENTER
+    const role = isHost ? 'HOST' : 'PRESENTER'; 
     const livekitIdentity = userId;
 
     client.data.livekitIdentity = livekitIdentity;
@@ -109,7 +106,6 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       livekitIdentity: livekitIdentity,
     });
 
-    console.log(`Usuario ${userId} (${role}) se unió a sala ${roomId}`);
 
     this.server.to(roomId).emit('room:participant_joined', {
       user: {
@@ -175,7 +171,6 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { roomId: string },
   ) {
     if (!client.data.user) return;
-    console.log(`Host ${client.data.user.sub} finalizó sala ${payload.roomId}`);
     this.server.to(payload.roomId).emit('room:kicked');
   }
 
@@ -190,7 +185,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.emit('room:left', { success: true });
   }
 
-  // Comandos de moderación
+
   @SubscribeMessage('mod:set_microphone')
   async handleModMicrophone(
     @ConnectedSocket() client: Socket,
@@ -198,20 +193,16 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const host = client.data.user;
     if (!host) return;
-    console.log(`Host ${host.sub} solicita micrófono ${data.enabled ? 'encender' : 'apagar'} para ${data.targetUserId} en sala ${data.roomId}`);
     
     const room = await this.prisma.room.findFirst({ where: { id: data.roomId, hostId: host.sub, isActive: true } });
     if (!room) {
-      console.log(`Host no autorizado o sala no encontrada`);
       return;
     }
 
     const target = this.participantsMap.get(data.targetUserId);
     if (target) {
-      console.log(`Enviando force_microphone a socket ${target.socketId}`);
       this.server.to(target.socketId).emit('force_microphone', { enabled: data.enabled });
     } else {
-      console.log(`Target ${data.targetUserId} no encontrado en el mapa de participantes`);
     }
   }
 
@@ -222,14 +213,12 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const host = client.data.user;
     if (!host) return;
-    console.log(`Host ${host.sub} solicita cámara ${data.enabled ? 'encender' : 'apagar'} para ${data.targetUserId} en sala ${data.roomId}`);
     
     const room = await this.prisma.room.findFirst({ where: { id: data.roomId, hostId: host.sub, isActive: true } });
     if (!room) return;
 
     const target = this.participantsMap.get(data.targetUserId);
     if (target) {
-      console.log(`Enviando force_camera a socket ${target.socketId}`);
       this.server.to(target.socketId).emit('force_camera', { enabled: data.enabled });
     }
   }
@@ -241,7 +230,6 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const host = client.data.user;
     if (!host) return;
-    console.log(`Host ${host.sub} expulsa a ${data.targetUserId} de sala ${data.roomId}`);
     
     const room = await this.prisma.room.findFirst({ where: { id: data.roomId, hostId: host.sub, isActive: true } });
     if (!room) return;
@@ -250,9 +238,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (target) {
       try {
         await this.roomServiceClient.removeParticipant(room.id, target.livekitIdentity);
-        console.log(`Participante ${data.targetUserId} expulsado de LiveKit`);
       } catch (err) {
-        console.error('Error expulsando de LiveKit:', err);
       }
       this.server.to(target.socketId).emit('room:kicked');
       const targetSocket = this.server.sockets.sockets.get(target.socketId);
